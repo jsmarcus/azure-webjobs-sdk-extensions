@@ -3,18 +3,19 @@
 
 using System.Collections.Generic;
 using Microsoft.Azure.NotificationHubs;
+using Microsoft.Azure.WebJobs.Host.Config;
 using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
 {
     internal static class Converter
     {
-        public static void AddNotificationHubConverters(this IConverterManager converterManager)
+        public static void AddNotificationHubConverters(this FluentBindingRule<NotificationHubAttribute> rule)
         {
-            converterManager.AddConverter<TemplateNotification, Notification>(templateNotification => templateNotification);
-            converterManager.AddConverter<string, Notification>(messageProperties => BuildTemplateNotificationFromJsonString(messageProperties));
-            converterManager.AddConverter<string, Notification, NotificationHubAttribute>((notificationAsString, notificationHubAttr) => BuildNotificationFromString(notificationAsString, notificationHubAttr.Platform));
-            converterManager.AddConverter<IDictionary<string, string>, Notification>(messageProperties => BuildTemplateNotificationFromDictionary(messageProperties));
+            rule.AddConverter<TemplateNotification, Notification>(templateNotification => templateNotification);
+            rule.AddConverter<string, Notification>(messageProperties => BuildTemplateNotificationFromJsonString(messageProperties));            
+            rule.AddConverter<string, Notification>((notificationAsString, notificationHubAttr) => BuildNotificationFromString(notificationAsString, notificationHubAttr.Platform));
+            rule.AddConverter<IDictionary<string, string>, Notification>(messageProperties => BuildTemplateNotificationFromDictionary(messageProperties));
         }
 
         internal static TemplateNotification BuildTemplateNotificationFromJsonString(string messageProperties)

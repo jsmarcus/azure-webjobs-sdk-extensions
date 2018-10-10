@@ -4,44 +4,37 @@
 using System;
 using System.Collections.Concurrent;
 using Microsoft.Azure.NotificationHubs;
+using Microsoft.Azure.WebJobs.Description;
 using Microsoft.Azure.WebJobs.Extensions.NotificationHubs.Bindings;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Host.Bindings;
 using Microsoft.Azure.WebJobs.Host.Config;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
 {
     /// <summary>
     /// Defines the configuration options for the NotificationHubs binding.
     /// </summary>
-    public class NotificationHubsConfiguration : IExtensionConfigProvider
+    [Extension("NotificationHubs")]
+    internal class NotificationHubsExtensionConfigProvider : IExtensionConfigProvider
     {
-        internal const string NotificationHubConnectionStringName = "AzureWebJobsNotificationHubsConnectionString";
-        internal const string NotificationHubSettingName = "AzureWebJobsNotificationHubName";
-        internal readonly ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService> ClientCache = new ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService>();
-
-        private string _defaultConnectionString;
-        private string _defaultHubName;
+        private readonly NotificationHubsOptions _options;
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService> _clientCache = new ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService>();        
 
         /// <summary>
         /// Constructs a new instance.
         /// </summary>
-        public NotificationHubsConfiguration()
+        internal NotificationHubsExtensionConfigProvider(IOptions<NotificationHubsOptions> options, ILoggerFactory loggerFactory)
         {
             NotificationHubClientServiceFactory = new DefaultNotificationHubClientServiceFactory();
+            _options = options.Value;
+            _loggerFactory = loggerFactory;            
         }
 
         internal INotificationHubClientServiceFactory NotificationHubClientServiceFactory { get; set; }
-
-        /// <summary>
-        /// Gets or sets the NotificationHubs ConnectionString to use with the Mobile App.
-        /// </summary>
-        public string ConnectionString { get; set; }
-
-        /// <summary>
-        /// Gets or sets NotificationHubs HubName to use with the MobileApp
-        /// </summary>
-        public string HubName { get; set; }
 
         /// <inheritdoc />
         public void Initialize(ExtensionConfigContext context)
@@ -51,30 +44,20 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
                 throw new ArgumentNullException("context");
             }
 
-            INameResolver nameResolver = context.Config.NameResolver;
-            IExtensionRegistry extensions = context.Config.GetService<IExtensionRegistry>();
-            _defaultConnectionString = nameResolver.Resolve(NotificationHubConnectionStringName);
-            _defaultHubName = nameResolver.Resolve(NotificationHubSettingName);
-
-            var converterManager = context.Config.GetService<IConverterManager>();
-            converterManager.AddNotificationHubConverters();
-
-            var bindingFactory = new BindingFactory(nameResolver, converterManager);
-            IBindingProvider clientProvider = bindingFactory.BindToInput<NotificationHubAttribute, NotificationHubClient>(new NotificationHubClientBuilder(this));
-
-            var ruleOutput = bindingFactory.BindToCollector<NotificationHubAttribute, Notification>((attribute) => BuildFromAttribute(attribute, context.Trace));
-
-            extensions.RegisterBindingRules<NotificationHubAttribute>(ruleOutput, clientProvider);
+            var rule = context.AddBindingRule<NotificationHubAttribute>();
+            rule.AddNotificationHubConverters();
+            rule.BindToInput(new NotificationHubClientBuilder(this));
+            rule.BindToCollector((attribute) => BuildFromAttribute(attribute, _loggerFactory.CreateLogger("NotificationHubs")));
         }
 
-        internal IAsyncCollector<Notification> BuildFromAttribute(NotificationHubAttribute attribute, TraceWriter trace)
+        internal IAsyncCollector<Notification> BuildFromAttribute(NotificationHubAttribute attribute, ILogger logger)
         {
             string resolvedConnectionString = ResolveConnectionString(attribute.ConnectionStringSetting);
             string resolvedHubName = ResolveHubName(attribute.HubName);
             bool enableTestSend = attribute.EnableTestSend;
 
             INotificationHubClientService service = GetService(resolvedConnectionString, resolvedHubName, enableTestSend);
-            return new NotificationHubAsyncCollector(service, attribute.TagExpression, attribute.EnableTestSend, trace);
+            return new NotificationHubAsyncCollector(service, attribute.TagExpression, attribute.EnableTestSend, logger);
         }
 
         internal NotificationHubClient BindForNotificationHubClient(NotificationHubAttribute attribute)
@@ -88,7 +71,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
 
         internal INotificationHubClientService GetService(string connectionString, string hubName, bool enableTestSend)
         {
-            return ClientCache.GetOrAdd(new Tuple<string, string>(connectionString, hubName.ToLowerInvariant()), (c) => NotificationHubClientServiceFactory.CreateService(c.Item1, c.Item2, enableTestSend));
+            return _clientCache.GetOrAdd(new Tuple<string, string>(connectionString, hubName.ToLowerInvariant()), (c) => NotificationHubClientServiceFactory.CreateService(c.Item1, c.Item2, enableTestSend));
         }
 
         /// <summary>
@@ -106,14 +89,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
                 return attributeConnectionString;
             }
 
-            // Second, try the config's ConnectionString
-            if (!string.IsNullOrEmpty(ConnectionString))
-            {
-                return ConnectionString;
-            }
-
-            // Finally, fall back to the default.
-            return _defaultConnectionString;
+            // Then use the options.
+            return _options.ConnectionString;
         }
 
         /// <summary>
@@ -130,14 +107,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
                 return attributeHubName;
             }
 
-            // Second, try the config's HubName
-            if (!string.IsNullOrEmpty(HubName))
-            {
-                return HubName;
-            }
-
-            // Finally, fall back to the default.
-            return _defaultHubName;
+            // Then use the options.
+            return _options.HubName;
         }
     }
 }

@@ -1,12 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
+    <Version>3.0.0-beta1$(VersionSuffix)</Version>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Microsoft.Azure.WebJobs.Extensions.NotificationHubs</AssemblyName>
     <RootNamespace>Microsoft.Azure.WebJobs.Extensions.NotificationHubs</RootNamespace>
     <PackageId>Microsoft.Azure.WebJobs.Extensions.NotificationHubs</PackageId>
     <Description>This package contains binding extensions for Azure Notification Hubs.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="GlobalSuppressions.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Azure.NotificationHubs" Version="2.0.0" />

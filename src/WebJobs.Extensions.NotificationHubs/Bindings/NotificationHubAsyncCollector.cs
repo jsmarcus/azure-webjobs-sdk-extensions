@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.NotificationHubs;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
 {
@@ -13,14 +14,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
         private INotificationHubClientService _notificationHubclientService;
         private string _tagExpression;
         private bool _enableTestSend;
-        private TraceWriter _traceWriter;
+        private ILogger _logger;
 
-        public NotificationHubAsyncCollector(INotificationHubClientService clientService, string tagExpression, bool enableTestSend, TraceWriter traceWriter)
+        public NotificationHubAsyncCollector(INotificationHubClientService clientService, string tagExpression, bool enableTestSend, ILogger logger)
         {
             _notificationHubclientService = clientService;
             _tagExpression = tagExpression;
             _enableTestSend = enableTestSend;
-            _traceWriter = traceWriter;
+            _logger = logger;
         }
 
         public async Task AddAsync(Notification item, CancellationToken cancellationToken = default(CancellationToken))
@@ -39,7 +40,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
                         debugLog += $"    ApplicationPlatform:{result.ApplicationPlatform}, RegistrationId:{result.RegistrationId}, Outcome:{result.Outcome}\r\n";
                     }
                 }
-                _traceWriter.Info(debugLog);
+                _logger.LogDebug(debugLog);
             }
         }
 

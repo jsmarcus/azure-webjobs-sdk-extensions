@@ -8,9 +8,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs.Bindings
 {
     internal class NotificationHubClientBuilder : IConverter<NotificationHubAttribute, NotificationHubClient>
     {
-        private NotificationHubsConfiguration _config;
+        private NotificationHubsExtensionConfigProvider _config;
 
-        public NotificationHubClientBuilder(NotificationHubsConfiguration config)
+        public NotificationHubClientBuilder(NotificationHubsExtensionConfigProvider config)
         {
             _config = config;
         }
