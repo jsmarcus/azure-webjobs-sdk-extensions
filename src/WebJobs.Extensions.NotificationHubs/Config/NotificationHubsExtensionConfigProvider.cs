@@ -27,7 +27,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
         /// <summary>
         /// Constructs a new instance.
         /// </summary>
-        internal NotificationHubsExtensionConfigProvider(IOptions<NotificationHubsOptions> options, ILoggerFactory loggerFactory)
+        public NotificationHubsExtensionConfigProvider(IOptions<NotificationHubsOptions> options, ILoggerFactory loggerFactory)
         {
             NotificationHubClientServiceFactory = new DefaultNotificationHubClientServiceFactory();
             _options = options.Value;
