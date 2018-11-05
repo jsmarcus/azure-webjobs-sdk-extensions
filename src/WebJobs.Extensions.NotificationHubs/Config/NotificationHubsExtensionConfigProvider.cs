@@ -22,7 +22,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
     {
         private readonly NotificationHubsOptions _options;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService> _clientCache = new ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService>();        
+        private readonly ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService> _clientCache = new ConcurrentDictionary<Tuple<string, string>, INotificationHubClientService>();
 
         /// <summary>
         /// Constructs a new instance.
@@ -31,7 +31,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
         {
             NotificationHubClientServiceFactory = new DefaultNotificationHubClientServiceFactory();
             _options = options.Value;
-            _loggerFactory = loggerFactory;            
+            _loggerFactory = loggerFactory;
         }
 
         internal INotificationHubClientServiceFactory NotificationHubClientServiceFactory { get; set; }
@@ -41,10 +41,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
         {
             if (context == null)
             {
-                throw new ArgumentNullException("context");
+                throw new ArgumentNullException(nameof(context));
             }
 
             var rule = context.AddBindingRule<NotificationHubAttribute>();
+            rule.AddValidator(ValidateBinding);
             rule.AddNotificationHubConverters();
             rule.BindToInput(new NotificationHubClientBuilder(this));
             rule.BindToCollector((attribute) => BuildFromAttribute(attribute, _loggerFactory.CreateLogger("NotificationHubs")));
@@ -109,6 +110,30 @@ namespace Microsoft.Azure.WebJobs.Extensions.NotificationHubs
 
             // Then use the options.
             return _options.HubName;
+        }
+
+        private void ValidateBinding(NotificationHubAttribute attribute, Type type)
+        {
+            ValidateBinding(attribute);
+        }
+
+        private void ValidateBinding(NotificationHubAttribute attribute)
+        {
+            string resolvedConnectionString = ResolveConnectionString(attribute.ConnectionStringSetting);
+
+            if (string.IsNullOrEmpty(resolvedConnectionString))
+            {
+                throw new InvalidOperationException(
+                    $"The Notification Hub Connection String must be set either via an '{Constants.DefaultConnectionStringName}' app setting, via an '{Constants.DefaultConnectionStringName}' environment variable, or directly in code via {nameof(NotificationHubsOptions)}.{nameof(NotificationHubsOptions.ConnectionString)} or {nameof(NotificationHubAttribute)}.{nameof(NotificationHubAttribute.ConnectionStringSetting)}.");
+            }
+
+            string resolvedHubName = ResolveHubName(attribute.HubName);
+
+            if (string.IsNullOrEmpty(resolvedHubName))
+            {
+                throw new InvalidOperationException(
+                    $"The Notification Hub Name must be set directly in code via {nameof(NotificationHubsOptions)}.{nameof(NotificationHubsOptions.HubName)} or {nameof(NotificationHubAttribute)}.{nameof(NotificationHubAttribute.HubName)}.");
+            }
         }
     }
 }
